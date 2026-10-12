@@ -1,0 +1,55 @@
+# ── Python ──────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# ── Virtual Environment ─────────────
+venv/
+env/
+.env
+.venv
+ENV/
+
+# ── Flask / App ─────────────────────
+instance/
+.webassets-cache
+*.log
+*.db
+plant_disease.db
+static/uploads/
+
+# ── ML Model files (large binaries) ─
+# Commit only class_names.json, not the heavy weights
+model/*.h5
+model/*.keras
+model/*.pt
+model/*.pth
+
+# ── Dataset & Binaries ──────────────
+dataset/
+dataset_sampled/
+cloudflared.exe
+*.exe
+
+# ── OS / IDE ─────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ── Testing / Coverage ───────────────
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# ── Build / Dist ─────────────────────
+dist/
+build/
+*.egg-info/

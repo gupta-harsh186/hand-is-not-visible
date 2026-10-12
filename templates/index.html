@@ -1,0 +1,1573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>PlantGuard AI – Plant Disease Detection</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Nunito:wght@300;400;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --green-dark:  #14532d;
+      --green-mid:   #16a34a;
+      --green-light: #f0fdf4;
+      --green-soft:  #dcfce7;
+      --green-border:#86efac;
+      --blue-light:  #eff6ff;
+      --blue-border: #93c5fd;
+      --yellow-bg:   #fefce8;
+      --yellow-bdr:  #fde68a;
+      --text-dark:   #1f2937;
+      --text-mid:    #374151;
+      --text-muted:  #6b7280;
+      --sev-none:    #22c55e;
+      --sev-low:     #84cc16;
+      --sev-moderate:#f59e0b;
+      --sev-high:    #ef4444;
+      --sev-critical:#7c3aed;
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    html, body {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    body {
+      font-family: 'Nunito', sans-serif;
+      background: linear-gradient(160deg, #f0fdf4 0%, #dcfce7 30%, #ecfdf5 60%, #f0f9ff 100%);
+      min-height: 100vh;
+      color: var(--text-dark);
+      overflow-x: hidden;
+    }
+
+    /* Decorative blobs */
+    body::before, body::after {
+      content:''; position:fixed; border-radius:50%; pointer-events:none; z-index:0;
+    }
+    body::before {
+      top:-120px; right:-120px; width:440px; height:440px;
+      background:rgba(74,222,128,.07);
+    }
+    body::after {
+      bottom:-100px; left:-100px; width:360px; height:360px;
+      background:rgba(34,197,94,.06);
+    }
+
+    /* HEADER */
+    header {
+      width: 100%;
+      background: linear-gradient(135deg, #14532d 0%, #166534 50%, #15803d 100%);
+      color: #fff;
+      box-shadow: 0 4px 30px rgba(22,101,52,.4);
+      position: relative; z-index:10;
+    }
+    .header-inner {
+      width: 100%;
+      max-width:1100px; margin:0 auto; padding:24px 32px;
+      display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;
+    }
+    .logo { display:flex; align-items:center; gap:14px; }
+    .logo-icon {
+      width:52px; height:52px;
+      background:rgba(255,255,255,.15); border-radius:14px;
+      display:flex; align-items:center; justify-content:center;
+      font-size:26px; backdrop-filter:blur(10px);
+    }
+    .logo h1 { font-family:'Playfair Display',serif; font-size:24px; margin-bottom:2px; }
+    .logo p  { font-size:11px; opacity:.75; letter-spacing:2px; text-transform:uppercase; }
+
+    .team-badges { display:flex; gap:8px; flex-wrap:wrap; }
+    .badge {
+      background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.2);
+      border-radius:20px; padding:6px 14px; font-size:12px; color:rgba(255,255,255,.9);
+      backdrop-filter:blur(10px); text-decoration:none; cursor:pointer; transition:all 0.3s ease;
+    }
+    .badge:hover {
+      background:rgba(255,255,255,.25); transform:translateY(-2px);
+    }
+
+    /* MAIN */
+    main { width: 100%; max-width:1100px; margin:0 auto; padding:40px 24px; position:relative; z-index:1; }
+
+    .hero { text-align:center; margin-bottom:40px; width:100%; }
+    .hero h2 {
+      font-family:'Playfair Display',serif; font-size:34px; color:var(--green-dark);
+      line-height:1.25; margin-bottom:12px;
+    }
+    .hero h2 span { color:var(--green-mid); font-style:italic; }
+    .hero p { font-size:15px; color:#4b7c5c; max-width:560px; margin:0 auto; line-height:1.7; }
+
+    /* GRID */
+    .grid { display:grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap:32px; align-items:start; width:100%; max-width:100%; box-sizing:border-box; }
+    .grid > div { min-width: 0; max-width: 100%; width: 100%; box-sizing:border-box; }
+    @media(max-width:768px){ .grid { grid-template-columns: minmax(0, 1fr) !important; gap: 20px; } }
+
+    /* UPLOAD CARD */
+    .upload-card {
+      border:2px dashed var(--green-border); border-radius:20px;
+      background:rgba(255,255,255,.7); backdrop-filter:blur(10px);
+      padding:40px 24px; text-align:center; cursor:pointer;
+      transition:all .3s; min-height:200px;
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      box-shadow:0 8px 32px rgba(22,101,52,.08);
+    }
+    .upload-card:hover, .upload-card.dragover {
+      border-color:var(--green-mid); background:rgba(74,222,128,.06);
+    }
+    .upload-card img { max-width:100%; max-height:260px; border-radius:14px; object-fit:cover; box-shadow:0 4px 20px rgba(0,0,0,.15); }
+    .upload-icon { font-size:52px; margin-bottom:14px; }
+    .upload-title { color:var(--green-mid); font-weight:800; font-size:16px; margin-bottom:6px; }
+    .upload-sub   { color:var(--text-muted); font-size:13px; }
+
+    /* BUTTONS */
+    .btn-analyze {
+      width:100%; margin-top:16px;
+      background:linear-gradient(135deg,#16a34a,#15803d);
+      color:#fff; border:none; border-radius:14px; padding:16px;
+      font-size:16px; font-weight:800; cursor:pointer; font-family:'Nunito',sans-serif;
+      box-shadow:0 6px 20px rgba(22,163,74,.35); transition:all .3s; letter-spacing:.5px;
+    }
+    .btn-analyze:disabled { background:#d1fae5; color:var(--text-muted); box-shadow:none; cursor:not-allowed; }
+    .btn-analyze:hover:not(:disabled) { transform:translateY(-2px); box-shadow:0 8px 24px rgba(22,163,74,.45); }
+
+    .btn-download {
+      width:100%;
+      background:linear-gradient(135deg,#1d4ed8,#1e40af);
+      color:#fff; border:none; border-radius:12px; padding:14px;
+      font-size:14px; font-weight:800; cursor:pointer; font-family:'Nunito',sans-serif;
+      box-shadow:0 4px 14px rgba(29,78,216,.3); transition:all .3s; letter-spacing:.5px;
+    }
+    .btn-download:hover { transform:translateY(-2px); box-shadow:0 6px 18px rgba(29,78,216,.4); }
+
+    /* ERROR BOX */
+    .error-box {
+      margin-top: 14px;
+      padding: 14px 18px;
+      background: #fef2f2;
+      border: 1px solid #f87171;
+      border-radius: 14px;
+      color: #991b1b;
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.5;
+      box-shadow: 0 4px 14px rgba(239, 68, 68, 0.15);
+      animation: fadeIn 0.3s ease;
+    }
+
+    /* TIPS */
+    .tips-card {
+      margin-top:24px; background:rgba(255,255,255,.6); backdrop-filter:blur(10px);
+      border-radius:16px; padding:20px; border:1px solid var(--green-border);
+    }
+    .tips-title { font-size:12px; font-weight:800; color:var(--green-dark); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px; }
+    .tip { display:flex; gap:8px; align-items:flex-start; margin-bottom:6px; }
+    .tip-check { color:#4ade80; font-size:14px; }
+    .tip-text  { color:var(--text-mid); font-size:13px; line-height:1.5; }
+
+    /* RESULT SIDE */
+    .placeholder-card, .loading-card {
+      background:rgba(255,255,255,.6); backdrop-filter:blur(10px);
+      border-radius:20px; padding:50px 30px; text-align:center;
+      border:1px solid var(--green-border); box-shadow:0 8px 32px rgba(22,101,52,.06);
+    }
+    .placeholder-icon { font-size:60px; margin-bottom:16px; }
+    .placeholder-title { color:var(--green-mid); font-size:18px; font-weight:800; margin-bottom:8px; }
+    .placeholder-sub   { color:var(--text-muted); font-size:14px; }
+
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .spin { display:inline-block; animation:spin 1.5s linear infinite; font-size:48px; margin-bottom:16px; }
+
+    /* RESULT CARD */
+    .result-card {
+      background:rgba(255,255,255,.85); backdrop-filter:blur(10px);
+      border-radius:20px; overflow:hidden; border:1px solid var(--green-border);
+      box-shadow:0 12px 40px rgba(22,101,52,.12);
+    }
+    .result-header { padding:24px 28px; border-bottom-width:3px; border-bottom-style:solid; }
+    .result-top    { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px; }
+    .plant-name    { font-family:'Playfair Display',serif; font-size:22px; font-weight:700; color:var(--green-dark); }
+    .disease-name  { font-size:16px; color:var(--green-mid); font-weight:700; margin-top:2px; }
+    .severity-badge {
+      display:inline-block; color:#fff; border-radius:20px; padding:6px 14px;
+      font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:1px; margin-bottom:6px;
+    }
+    .conf-text     { font-size:13px; color:var(--text-mid); }
+    .conf-bar      { background:rgba(0,0,0,.06); border-radius:20px; height:8px; }
+    .conf-fill     { height:8px; border-radius:20px; transition:width 1s ease; }
+
+    .result-body   { padding:24px 28px; }
+    .section-label { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:1.5px; margin:0 0 8px; }
+    .section-label.green { color:var(--green-dark); }
+    .section-label.blue  { color:#1d4ed8; }
+    .description   { font-size:14px; color:var(--text-mid); line-height:1.7; margin-bottom:20px; }
+
+    .info-box      { border-radius:12px; padding:16px; margin-bottom:14px; }
+    .info-box p    { font-size:13px; color:var(--text-mid); line-height:1.7; margin:0; }
+    .info-box.green{ background:var(--green-light); border:1px solid var(--green-border); }
+    .info-box.blue { background:var(--blue-light);  border:1px solid var(--blue-border); }
+
+    .warn-box      { background:var(--yellow-bg); border:1px solid var(--yellow-bdr); border-radius:10px; padding:12px 14px; margin-bottom:16px; font-size:12px; color:#92400e; }
+
+    /* STATS BAR */
+    .stats-bar {
+      margin-top:48px; display:grid; grid-template-columns:repeat(4,1fr); gap:16px;
+    }
+    @media(max-width:600px){ .stats-bar { grid-template-columns:repeat(2,1fr); } }
+    .stat-card {
+      background:rgba(255,255,255,.7); backdrop-filter:blur(10px);
+      border-radius:16px; padding:20px; text-align:center;
+      border:1px solid var(--green-border); box-shadow:0 4px 16px rgba(22,101,52,.06);
+    }
+    .stat-icon  { font-size:28px; margin-bottom:6px; }
+    .stat-value { font-family:'Playfair Display',serif; font-size:22px; font-weight:700; color:var(--green-dark); }
+    .stat-label { font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin-top:2px; }
+
+    /* FOOTER */
+    footer {
+      margin-top:48px; text-align:center;
+      border-top:1px solid var(--green-border); padding-top:30px; padding-bottom:30px;
+    }
+    footer p { color:var(--text-muted); font-size:13px; margin-bottom:12px; }
+    .team-footer { display:flex; justify-content:center; gap:16px; flex-wrap:wrap; margin-bottom:12px; }
+    .team-pill {
+      background:linear-gradient(135deg,#14532d,#15803d);
+      color:#fff; border-radius:22px; padding:8px 20px;
+      font-size:14px; font-weight:700; box-shadow:0 4px 12px rgba(22,101,52,.2);
+      text-decoration:none; cursor:pointer; transition:all 0.3s ease;
+    }
+    .team-pill:hover {
+      transform:translateY(-2px); box-shadow:0 6px 16px rgba(22,101,52,.35);
+    }
+    .copy { color:#64748b; font-size:12px; font-weight:600; letter-spacing:0.3px; margin-top:8px; }
+
+    .hidden { display:none !important; }
+
+    /* SCAN HISTORY SECTION */
+    .history-section {
+      margin-top: 48px;
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(12px);
+      border-radius: 20px;
+      padding: 30px;
+      border: 1px solid var(--green-border);
+      box-shadow: 0 8px 32px rgba(22, 101, 52, 0.08);
+    }
+    .history-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 24px;
+      border-bottom: 1px solid var(--green-border);
+      padding-bottom: 16px;
+    }
+    .history-title-wrap { display: flex; align-items: center; gap: 10px; }
+    .history-title { font-family: 'Playfair Display', serif; font-size: 22px; color: var(--green-dark); font-weight: 700; margin: 0; }
+    .history-count {
+      background: rgba(22, 163, 74, 0.15);
+      color: var(--green-dark);
+      font-size: 12px;
+      font-weight: 800;
+      padding: 4px 10px;
+      border-radius: 12px;
+    }
+    .btn-clear-history {
+      background: #fee2e2;
+      color: #b91c1c;
+      border: 1px solid #f87171;
+      border-radius: 10px;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-clear-history:hover {
+      background: #fecaca;
+      transform: translateY(-1px);
+    }
+    .history-empty {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-muted);
+    }
+    .history-empty-icon { font-size: 40px; margin-bottom: 10px; }
+    .history-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 16px;
+    }
+    .history-card {
+      background: #ffffff;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid rgba(22, 101, 52, 0.12);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+      transition: all 0.25s ease;
+      display: flex;
+      flex-direction: column;
+    }
+    .history-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 24px rgba(22, 101, 52, 0.12);
+      border-color: var(--green-mid);
+    }
+    .history-thumb-wrap {
+      width: 100%;
+      height: 140px;
+      background: #f3f4f6;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .history-thumb {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .history-badge {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 800;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+    .history-card-body {
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
+    .history-plant {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 800;
+      color: var(--green-mid);
+      margin-bottom: 2px;
+    }
+    .history-disease {
+      font-size: 15px;
+      font-weight: 800;
+      color: #1f2937;
+      margin-bottom: 8px;
+      line-height: 1.3;
+    }
+    .history-meta {
+      margin-top: auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      color: var(--text-muted);
+      border-top: 1px solid #f3f4f6;
+      padding-top: 8px;
+    }
+    .history-conf {
+      font-weight: 800;
+      color: var(--green-dark);
+    }
+
+    /* ── GEMINI AI & HYBRID EXTENSIONS ── */
+    .btn-key {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
+      border: 1px solid rgba(255,255,255,0.4) !important;
+      font-weight: 800 !important;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+    }
+    .btn-key:hover {
+      background: linear-gradient(135deg, #4f46e5, #7c3aed) !important;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+      background: #ef4444;
+      transition: background 0.3s;
+    }
+    .status-dot.active {
+      background: #22c55e;
+      box-shadow: 0 0 8px #22c55e;
+    }
+
+    .gemini-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: linear-gradient(135deg, #eff6ff, #f3e8ff);
+      border: 1px solid #c084fc;
+      color: #7e22ce;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 3px 10px;
+      border-radius: 20px;
+      margin-top: 4px;
+    }
+    .info-box.organic {
+      background: #f0fdf4;
+      border: 1px solid #86efac;
+    }
+    .info-box.chemical {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+    }
+    .section-label.amber { color: #b45309; }
+
+    /* Modal Backdrop */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0,0,0,0.55);
+      backdrop-filter: blur(5px);
+      z-index: 1000;
+      display: flex; align-items: center; justify-content: center;
+      padding: 16px;
+    }
+    .modal-box {
+      background: #ffffff;
+      border-radius: 20px;
+      max-width: 480px;
+      width: 100%;
+      padding: 28px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+      position: relative;
+      animation: modalIn 0.25s ease;
+    }
+    @keyframes modalIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .modal-box h3 {
+      font-family: 'Playfair Display', serif;
+      font-size: 22px;
+      color: var(--green-dark);
+      margin-bottom: 6px;
+    }
+    .modal-box p {
+      font-size: 13px;
+      color: var(--text-mid);
+      line-height: 1.5;
+      margin-bottom: 16px;
+    }
+    .modal-input {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid #d1d5db;
+      font-size: 14px;
+      font-family: monospace;
+      margin-bottom: 12px;
+      outline: none;
+      box-sizing: border-box;
+    }
+    .modal-input:focus {
+      border-color: var(--green-mid);
+      box-shadow: 0 0 0 3px rgba(34,197,94,0.2);
+    }
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      margin-top: 14px;
+    }
+    .btn-secondary {
+      background: #f3f4f6;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      color: var(--text-mid);
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #16a34a, #15803d);
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    /* AI Chatbot Styles */
+    /* AI Chatbot Styles */
+    .chat-card {
+      margin-top: 24px;
+      background: #ffffff;
+      border-radius: 20px;
+      border: 1px solid var(--green-border);
+      box-shadow: 0 10px 30px rgba(22, 101, 52, 0.08);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      min-width: 0;
+    }
+    .chat-header {
+      background: linear-gradient(135deg, #14532d, #166534);
+      color: #fff;
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .chat-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+      flex: 1;
+    }
+    .chat-avatar {
+      font-size: 26px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 12px;
+      width: 42px;
+      height: 42px;
+      min-width: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .chat-title h4 { font-size: 16px; margin: 0; font-weight: 800; word-break: break-word; }
+    .chat-title p { font-size: 11px; margin: 2px 0 0; opacity: 0.85; }
+    .chat-badge {
+      background: rgba(255,255,255,0.18);
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-weight: 700;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .chat-chips {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 12px 16px;
+      background: #f8fafc;
+      border-bottom: 1px solid #e2e8f0;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      min-width: 0;
+    }
+    .chip {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      padding: 6px 12px;
+      border-radius: 16px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #334155;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: all 0.2s ease;
+    }
+    .chip:hover {
+      background: #f0fdf4;
+      border-color: #86efac;
+      color: #166534;
+      transform: translateY(-1px);
+    }
+    .chat-messages {
+      height: 240px;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      background: #fafafa;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      min-width: 0;
+    }
+    .chat-msg {
+      max-width: 85%;
+      padding: 12px 16px;
+      border-radius: 14px;
+      font-size: 13px;
+      line-height: 1.5;
+      word-break: break-word;
+      overflow-wrap: break-word;
+    }
+    .chat-msg.ai {
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      color: #1f2937;
+      align-self: flex-start;
+      border-bottom-left-radius: 4px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+    }
+    .chat-msg.user {
+      background: linear-gradient(135deg, #16a34a, #15803d);
+      color: #ffffff;
+      align-self: flex-end;
+      border-bottom-right-radius: 4px;
+      box-shadow: 0 4px 10px rgba(22,163,74,0.25);
+    }
+    .chat-input-row {
+      display: flex;
+      padding: 12px;
+      gap: 8px;
+      background: #ffffff;
+      border-top: 1px solid #e5e7eb;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      min-width: 0;
+    }
+    .chat-input-row input {
+      flex: 1;
+      min-width: 0;
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid #d1d5db;
+      font-size: 13px;
+      outline: none;
+      box-sizing: border-box;
+    }
+    .chat-input-row input:focus {
+      border-color: var(--green-mid);
+    }
+    .chat-input-row button {
+      background: var(--green-mid);
+      color: #fff;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s ease;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .chat-input-row button:hover {
+      background: var(--green-dark);
+    }
+
+    /* ── COMPREHENSIVE MOBILE RESPONSIVE STYLES ── */
+    @media (max-width: 768px) {
+      body::before, body::after {
+        display: none !important;
+      }
+      header {
+        width: 100% !important;
+      }
+      .header-inner {
+        padding: 16px 14px !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        text-align: center !important;
+        gap: 14px !important;
+      }
+      .logo {
+        flex-direction: column !important;
+        align-items: center !important;
+        text-align: center !important;
+        gap: 8px !important;
+      }
+      .logo h1 {
+        font-size: 22px !important;
+      }
+      .logo p {
+        font-size: 10px !important;
+        letter-spacing: 1.5px !important;
+      }
+      .team-badges {
+        justify-content: center !important;
+        gap: 6px !important;
+        width: 100% !important;
+      }
+      .badge {
+        padding: 4px 10px !important;
+        font-size: 11px !important;
+      }
+      main {
+        padding: 20px 12px !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+      }
+      .hero {
+        margin-bottom: 24px !important;
+      }
+      .hero h2 {
+        font-size: 22px !important;
+        line-height: 1.3 !important;
+      }
+      .hero p {
+        font-size: 13px !important;
+        padding: 0 4px !important;
+      }
+      .grid {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 20px !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+      }
+      .grid > div {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        overflow: hidden !important;
+        box-sizing: border-box !important;
+      }
+      .upload-card {
+        padding: 24px 14px !important;
+        min-height: 180px !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+      }
+      .placeholder-card, .loading-card {
+        padding: 28px 14px !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+      }
+      .placeholder-sub {
+        font-size: 12px !important;
+        word-break: break-word !important;
+        line-height: 1.5 !important;
+      }
+      .result-header {
+        padding: 16px 14px !important;
+      }
+      .result-top {
+        flex-direction: column !important;
+        gap: 12px !important;
+        align-items: flex-start !important;
+      }
+      .result-top > div:last-child {
+        text-align: left !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 10px !important;
+        width: 100% !important;
+        justify-content: space-between !important;
+      }
+      .result-body {
+        padding: 16px 14px !important;
+      }
+      .chat-card {
+        margin-top: 16px !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        overflow: hidden !important;
+      }
+      .chat-header {
+        padding: 12px 14px !important;
+        gap: 8px !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        flex-wrap: nowrap !important;
+      }
+      .chat-title {
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        min-width: 0 !important;
+        flex: 1 !important;
+      }
+      .chat-avatar {
+        width: 34px !important;
+        height: 34px !important;
+        min-width: 34px !important;
+        font-size: 20px !important;
+        flex-shrink: 0 !important;
+      }
+      .chat-title-text {
+        min-width: 0 !important;
+        flex: 1 !important;
+        overflow: hidden !important;
+      }
+      .chat-title h4 {
+        font-size: 13px !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        margin: 0 !important;
+      }
+      .chat-title p {
+        font-size: 10px !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        margin: 0 !important;
+      }
+      .chat-badge {
+        flex-shrink: 0 !important;
+        font-size: 10px !important;
+        padding: 3px 8px !important;
+      }
+      .chat-chips {
+        padding: 8px 10px !important;
+        gap: 6px !important;
+      }
+      .chip {
+        font-size: 11px !important;
+        padding: 5px 10px !important;
+      }
+      .chat-messages {
+        height: 200px !important;
+        padding: 10px !important;
+      }
+      .chat-msg {
+        max-width: 90% !important;
+        font-size: 12px !important;
+        padding: 10px 12px !important;
+      }
+      .chat-input-row {
+        padding: 8px 10px !important;
+      }
+      .chat-input-row input {
+        font-size: 12px !important;
+        padding: 8px 10px !important;
+      }
+      .chat-input-row button {
+        padding: 8px 12px !important;
+        font-size: 12px !important;
+      }
+      .history-section {
+        padding: 18px 12px !important;
+        margin-top: 24px !important;
+      }
+      .history-header {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 10px !important;
+      }
+      .btn-clear-history {
+        width: 100% !important;
+        justify-content: center !important;
+      }
+      .history-grid {
+        grid-template-columns: minmax(0, 1fr) !important;
+        gap: 12px !important;
+      }
+      .stats-bar {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 10px !important;
+        margin-top: 24px !important;
+      }
+      .stat-card {
+        padding: 14px 10px !important;
+      }
+      .stat-icon {
+        font-size: 24px !important;
+      }
+      .stat-value {
+        font-size: 18px !important;
+      }
+      .stat-label {
+        font-size: 10px !important;
+      }
+      footer {
+        padding: 24px 12px !important;
+        margin-top: 30px !important;
+      }
+      .team-footer {
+        gap: 8px !important;
+      }
+      .team-pill {
+        padding: 6px 14px !important;
+        font-size: 12px !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="header-inner">
+    <div class="logo">
+      <div class="logo-icon">🌿</div>
+      <div>
+        <h1>PlantGuard AI</h1>
+        <p>Plant Disease Detection System</p>
+      </div>
+    </div>
+    <div class="team-badges">
+      <a href="https://www.linkedin.com/in/deepika-singh-9b6b98388/?isSelfProfile=false" target="_blank" rel="noopener noreferrer" class="badge">👩‍💻 Deepika Singh</a>
+      <a href="https://www.linkedin.com/in/hritik-mishra-23aa42347/?isSelfProfile=false" target="_blank" rel="noopener noreferrer" class="badge">👨‍💻 Hritik Mishra</a>
+      <a href="https://www.linkedin.com/in/kartik-gupta-2851863b1/?isSelfProfile=false" target="_blank" rel="noopener noreferrer" class="badge">👨‍💻 Kartik Gupta</a>
+      <a href="https://www.linkedin.com/in/rakshit-kumar-842124386/?isSelfProfile=false" target="_blank" rel="noopener noreferrer" class="badge">👨‍💻 Rakshit Kumar</a>
+      <a href="https://www.linkedin.com/in/saurav-kumar-11ba41320/?isSelfProfile=false" target="_blank" rel="noopener noreferrer" class="badge">👨‍💻 Saurav Kumar</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- Hero -->
+  <div class="hero">
+    <h2>Detect Plant Diseases<br/><span>Instantly with AI</span></h2>
+    <p>Upload a photo of any plant leaf and our AI will diagnose diseases, assess severity, and recommend treatment — in seconds.</p>
+  </div>
+
+  <!-- Grid -->
+  <div class="grid">
+
+    <!-- LEFT: Upload -->
+    <div>
+      <div class="upload-card" id="dropZone" onclick="document.getElementById('fileInput').click()"
+           ondragover="event.preventDefault(); this.classList.add('dragover')"
+           ondragleave="this.classList.remove('dragover')"
+           ondrop="handleDrop(event)">
+        <div id="uploadPlaceholder">
+          <div class="upload-icon">🍃</div>
+          <p class="upload-title">Drop your leaf image here</p>
+          <p class="upload-sub">or click to browse · JPG, PNG, WEBP</p>
+        </div>
+        <img id="previewImg" class="hidden" alt="Preview"/>
+      </div>
+      <input type="file" id="fileInput" accept="image/*" style="display:none" onchange="handleFile(this.files[0])"/>
+
+      <button class="btn-analyze hidden" id="analyzeBtn" onclick="analyzeImage()">
+        🔍 Analyze Disease
+      </button>
+
+      <div class="error-box hidden" id="errorBox"></div>
+
+      <!-- Tips -->
+      <div class="tips-card">
+        <p class="tips-title">📌 Tips for Best Results</p>
+        <div class="tip"><span class="tip-check">✓</span><span class="tip-text">Upload a clear, well-lit leaf photo</span></div>
+        <div class="tip"><span class="tip-check">✓</span><span class="tip-text">Ensure the leaf fills most of the frame</span></div>
+        <div class="tip"><span class="tip-check">✓</span><span class="tip-text">Include both healthy and affected areas</span></div>
+        <div class="tip"><span class="tip-check">✓</span><span class="tip-text">Works best with common plant species</span></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Results -->
+    <div>
+      <!-- Placeholder -->
+      <div class="placeholder-card" id="placeholderCard">
+        <div class="placeholder-icon">🔬</div>
+        <p class="placeholder-title">AI Analysis Ready</p>
+        <p class="placeholder-sub">Upload a leaf image and click Analyze to detect diseases</p>
+      </div>
+
+      <!-- Loading -->
+      <div class="loading-card hidden" id="loadingCard">
+        <div class="spin">🌿</div>
+        <p class="placeholder-title">Scanning Leaf...</p>
+        <p class="placeholder-sub">AI is analyzing disease patterns with Hybrid Vision & Pathology</p>
+      </div>
+
+      <!-- Result -->
+      <div class="result-card hidden" id="resultCard">
+        <div class="result-header" id="resultHeader">
+          <div class="result-top">
+            <div>
+              <div class="plant-name" id="plantName"></div>
+              <div class="disease-name" id="diseaseName"></div>
+              <div id="geminiEnhancedBadge" class="hidden">
+                <span class="gemini-pill">✨ Expert AI Verified</span>
+              </div>
+            </div>
+            <div style="text-align:right">
+              <div class="severity-badge" id="severityBadge"></div>
+              <div class="conf-text">Confidence: <strong id="confPct"></strong></div>
+            </div>
+          </div>
+          <div class="conf-bar"><div class="conf-fill" id="confFill"></div></div>
+        </div>
+
+        <div class="result-body">
+          <p class="section-label green">📋 Diagnosis</p>
+          <p class="description" id="descText"></p>
+
+          <div class="info-box green">
+            <p class="section-label green" style="margin-bottom:6px">💊 Immediate Treatment</p>
+            <p id="treatText"></p>
+          </div>
+
+          <div class="info-box organic hidden" id="organicBox">
+            <p class="section-label green" style="margin-bottom:6px">🌱 Organic & Biological Remedies</p>
+            <p id="organicText"></p>
+          </div>
+
+          <div class="info-box chemical hidden" id="chemicalBox">
+            <p class="section-label amber" style="margin-bottom:6px">🧪 Chemical Controls & Fungicides</p>
+            <p id="chemicalText"></p>
+          </div>
+
+          <div class="info-box blue">
+            <p class="section-label blue" style="margin-bottom:6px">🛡️ Long-term Prevention & Cultural Care</p>
+            <p id="prevText"></p>
+          </div>
+
+          <div class="warn-box hidden" id="lowConfWarn">
+            ⚠️ <strong>Low Confidence:</strong> This leaf may not be in the training dataset.
+            Result is an estimated best-match. Please consult an agricultural expert.
+          </div>
+
+          <button class="btn-download" onclick="downloadPDF()">
+            📄 Download Diagnostic PDF Report
+          </button>
+        </div>
+      </div>
+
+      <!-- AI PLANT DOCTOR CHAT CARD -->
+      <div class="chat-card" id="chatCard">
+        <div class="chat-header">
+          <div class="chat-title">
+            <div class="chat-avatar">👨‍⚕️</div>
+            <div class="chat-title-text">
+              <h4>Ask Plant Doctor (AI Kheti Sahayak)</h4>
+              <p>Ask in Hindi or English about cures, fertilizers, dosage & care</p>
+            </div>
+          </div>
+          <span class="chat-badge" id="chatStatusPill">🟢 Online</span>
+        </div>
+
+        <div class="chat-chips">
+          <button class="chip" onclick="askPreset('इस पौधे के लिए सबसे असरदार देसी/जैविक उपाय क्या है?')">🌿 Best Organic Cure</button>
+          <button class="chip" onclick="askPreset('कौन सा कीटनाशक या फफूंदनाशक स्प्रे करें और कितनी मात्रा में?')">🧪 Chemical Dosage</button>
+          <button class="chip" onclick="askPreset('पानी कब और कैसे देना चाहिए?')">💧 Watering Schedule</button>
+          <button class="chip" onclick="askPreset('क्या यह बीमारी पास के दूसरे पौधों में भी फैल सकती है?')">⚠️ Is it Contagious?</button>
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+          <div class="chat-msg ai">
+            👋 <strong>नमस्ते!</strong> मैं PlantGuard AI Doctor हूँ। आप अपने पौधे की किसी भी बीमारी, कीटनाशक, खाद या मौसम से जुड़ी सलाह मुझसे हिंदी या इंग्लिश में पूछ सकते हैं।
+          </div>
+        </div>
+
+        <div class="chat-input-row">
+          <input type="text" id="chatInput" placeholder="अपना सवाल यहाँ लिखें (e.g. Kaunsa spray karein?)..." onkeypress="if(event.key==='Enter') sendChatMessage()"/>
+          <button id="chatSendBtn" onclick="sendChatMessage()">Send 📤</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- SCAN HISTORY (SQLITE DB) -->
+  <section class="history-section" id="historySection">
+    <div class="history-header">
+      <div class="history-title-wrap">
+        <h3 class="history-title">📋 Diagnostic Scan History</h3>
+        <span class="history-count" id="historyCount">0 Scans</span>
+      </div>
+      <button class="btn-clear-history" id="btnClearHistory" onclick="clearHistory()">
+        🗑️ Clear History
+      </button>
+    </div>
+
+    <div id="historyContainer">
+      <div class="history-empty" id="historyEmpty">
+        <div class="history-empty-icon">🍃</div>
+        <p>No scans saved yet. Upload and analyze a leaf to store records in the SQLite database.</p>
+      </div>
+      <div class="history-grid" id="historyGrid"></div>
+    </div>
+  </section>
+
+  <!-- Stats Bar -->
+  <div class="stats-bar">
+    <div class="stat-card"><div class="stat-icon">🌱</div><div class="stat-value">38+</div><div class="stat-label">Plant Species</div></div>
+    <div class="stat-card"><div class="stat-icon">🦠</div><div class="stat-value">100+</div><div class="stat-label">Disease Types</div></div>
+    <div class="stat-card"><div class="stat-icon">🎯</div><div class="stat-value">~94%</div><div class="stat-label">AI Accuracy</div></div>
+    <div class="stat-card"><div class="stat-icon">⚡</div><div class="stat-value">&lt;5s</div><div class="stat-label">Analysis Time</div></div>
+  </div>
+</main>
+
+<!-- Footer -->
+<footer>
+  <p>Developed with ❤️ by</p>
+  <div class="team-footer">
+    <a href="https://www.linkedin.com/in/deepika-singh-9b6b98388/?isSelfProfile=false" target="_blank" rel="noopener noreferrer" class="team-pill">Deepika Singh</a>
+    <a href="https://www.linkedin.com/in/hritik-mishra-23aa42347/?isSelfProfile=false" target="_blank" rel="noopener noreferrer" class="team-pill">Hritik Mishra</a>
+    <a href="https://www.linkedin.com/in/kartik-gupta-2851863b1/?isSelfProfile=false" target="_blank" rel="noopener noreferrer" class="team-pill">Kartik Gupta</a>
+    <a href="https://www.linkedin.com/in/rakshit-kumar-842124386/?isSelfProfile=false" target="_blank" rel="noopener noreferrer" class="team-pill">Rakshit Kumar</a>
+    <a href="https://www.linkedin.com/in/saurav-kumar-11ba41320/?isSelfProfile=false" target="_blank" rel="noopener noreferrer" class="team-pill">Saurav Kumar</a>
+  </div>
+  <p class="copy">© 2026 PlantGuard AI — Plant Disease Detection System · All Rights Reserved</p>
+</footer>
+
+<script>
+  const SEV_COLOR = {
+    None:"#22c55e", Low:"#84cc16", Moderate:"#f59e0b", High:"#ef4444", Critical:"#7c3aed"
+  };
+  const SEV_EMOJI = { None:"✅", Low:"🟡", Moderate:"🟠", High:"🔴", Critical:"🟣" };
+
+  let currentResult = null;
+  let currentImageB64 = null;
+  let currentFile = null;
+
+  function handleDrop(e) {
+    e.preventDefault();
+    document.getElementById('dropZone').classList.remove('dragover');
+    handleFile(e.dataTransfer.files[0]);
+  }
+
+  function handleFile(file) {
+    if (!file || !file.type.startsWith('image/')) return;
+    currentFile = file;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      currentImageB64 = ev.target.result.split(',')[1];
+      const img = document.getElementById('previewImg');
+      img.src = ev.target.result;
+      img.classList.remove('hidden');
+      document.getElementById('uploadPlaceholder').style.display = 'none';
+      document.getElementById('analyzeBtn').classList.remove('hidden');
+      document.getElementById('resultCard').classList.add('hidden');
+      document.getElementById('placeholderCard').classList.remove('hidden');
+      hideError();
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function compressImage(file, maxDimension = 640, quality = 0.85) {
+    return new Promise((resolve) => {
+      if (file.size < 250 * 1024) return resolve(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          let w = img.width;
+          let h = img.height;
+          if (w > maxDimension || h > maxDimension) {
+            if (w > h) {
+              h = Math.round((h * maxDimension) / w);
+              w = maxDimension;
+            } else {
+              w = Math.round((w * maxDimension) / h);
+              h = maxDimension;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          canvas.toBlob((blob) => {
+            resolve(new File([blob], file.name || "leaf.jpg", { type: "image/jpeg" }));
+          }, "image/jpeg", quality);
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function analyzeImage() {
+    if (!currentFile) return;
+
+    showLoading(true);
+    hideError();
+
+    const uploadFile = await compressImage(currentFile);
+    const formData = new FormData();
+    formData.append('file', uploadFile);
+
+    try {
+      const resp = await fetch('/analyze', { method:'POST', body: formData });
+      if (!resp.ok) {
+        let errMessage = "Server error occurred. Please try again.";
+        try {
+          const errData = await resp.json();
+          if (errData && errData.error) errMessage = errData.error;
+        } catch(e) {}
+        showError(errMessage);
+        stopLoading();
+        document.getElementById('placeholderCard').classList.remove('hidden');
+        return;
+      }
+
+      const data = await resp.json();
+      if (data.error) {
+        showError(data.error);
+        stopLoading();
+        document.getElementById('placeholderCard').classList.remove('hidden');
+        return;
+      }
+
+      currentResult = data;
+      renderResult(data);
+      loadHistory();
+      stopLoading();
+    } catch(err) {
+      showError('Analysis failed. Please try again.');
+      stopLoading();
+      document.getElementById('placeholderCard').classList.remove('hidden');
+    }
+  }
+
+  function renderResult(r) {
+    const pct = Math.round(r.confidence * 100);
+    const color = SEV_COLOR[r.severity] || '#6b7280';
+    const emoji = SEV_EMOJI[r.severity] || '⚪';
+
+    document.getElementById('plantName').textContent   = r.plant;
+    document.getElementById('diseaseName').textContent = r.disease;
+    document.getElementById('confPct').textContent     = pct + '%';
+    document.getElementById('descText').textContent    = r.description;
+    document.getElementById('treatText').textContent   = r.treatment;
+    document.getElementById('prevText').textContent    = r.prevention;
+
+    // Organic & Chemical treatments (Gemini AI)
+    const orgBox = document.getElementById('organicBox');
+    if (r.organic_treatment) {
+      document.getElementById('organicText').textContent = r.organic_treatment;
+      orgBox.classList.remove('hidden');
+    } else {
+      orgBox.classList.add('hidden');
+    }
+
+    const chemBox = document.getElementById('chemicalBox');
+    if (r.chemical_treatment) {
+      document.getElementById('chemicalText').textContent = r.chemical_treatment;
+      chemBox.classList.remove('hidden');
+    } else {
+      chemBox.classList.add('hidden');
+    }
+
+    // Gemini Badge
+    const geminiBadge = document.getElementById('geminiEnhancedBadge');
+    if (r.gemini_enhanced) {
+      geminiBadge.classList.remove('hidden');
+    } else {
+      geminiBadge.classList.add('hidden');
+    }
+
+    // Update AI Chat Context
+    currentScanPlant = r.plant;
+    currentScanDisease = r.disease;
+    addChatMessage(`🔍 <strong>नया स्कैन:</strong> ${r.plant} - ${r.disease} पहचाना गया है। आप इसके बारे में मुझसे कोई भी सवाल पूछ सकते हैं।`, 'ai');
+
+    const badge = document.getElementById('severityBadge');
+    badge.textContent = emoji + ' ' + r.severity;
+    badge.style.background = color;
+
+    const header = document.getElementById('resultHeader');
+    header.style.borderBottomColor = color;
+    header.style.background = color + '18';
+
+    const fill = document.getElementById('confFill');
+    fill.style.width = pct + '%';
+    fill.style.background = `linear-gradient(90deg, ${color}, ${color}cc)`;
+
+    const warn = document.getElementById('lowConfWarn');
+    pct < 65 ? warn.classList.remove('hidden') : warn.classList.add('hidden');
+
+    document.getElementById('placeholderCard').classList.add('hidden');
+    document.getElementById('resultCard').classList.remove('hidden');
+  }
+
+  async function downloadPDF() {
+    if (!currentResult) return;
+    const payload = { ...currentResult, image_b64: currentImageB64 };
+    const resp = await fetch('/download_pdf', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    if (!resp.ok) { alert('Failed to generate PDF'); return; }
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'PlantDisease_Report.pdf'; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function showLoading(on) {
+    document.getElementById('loadingCard').classList.remove('hidden');
+    document.getElementById('placeholderCard').classList.add('hidden');
+    document.getElementById('resultCard').classList.add('hidden');
+    const btn = document.getElementById('analyzeBtn');
+    btn.disabled = true;
+    btn.textContent = '🔬 Analyzing leaf...';
+  }
+
+  function stopLoading() {
+    document.getElementById('loadingCard').classList.add('hidden');
+    const btn = document.getElementById('analyzeBtn');
+    btn.disabled = false;
+    btn.textContent = '🔍 Analyze Disease';
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('errorBox');
+    el.textContent = '⚠️ ' + msg;
+    el.classList.remove('hidden');
+  }
+  function hideError() {
+    document.getElementById('errorBox').classList.add('hidden');
+  }
+
+  // ── GEMINI AI API KEY CONFIGURATION ─
+  let geminiConfigured = false;
+  let currentScanPlant = "";
+  let currentScanDisease = "";
+
+  async function checkGeminiStatus() {
+    try {
+      const resp = await fetch('/api/config/gemini-key');
+      const data = await resp.json();
+      geminiConfigured = !!data.configured;
+      const dot = document.getElementById('keyStatusDot');
+      const statusPill = document.getElementById('chatStatusPill');
+
+      if (geminiConfigured) {
+        if (dot) dot.classList.add('active');
+        if (statusPill) statusPill.textContent = '🟢 Online';
+      } else {
+        if (dot) dot.classList.remove('active');
+        if (statusPill) statusPill.textContent = '⚪ Offline';
+      }
+    } catch(err) {
+      console.warn('Could not check Gemini status:', err);
+    }
+  }
+
+  function openKeyModal() {
+    document.getElementById('keyModalOverlay').classList.remove('hidden');
+    document.getElementById('modalStatusMsg').textContent = '';
+  }
+
+  function closeKeyModal() {
+    document.getElementById('keyModalOverlay').classList.add('hidden');
+  }
+
+  async function saveApiKey() {
+    const key = document.getElementById('geminiApiKeyInput').value.trim();
+    const msgEl = document.getElementById('modalStatusMsg');
+    const btn = document.getElementById('btnSaveKey');
+
+    if (!key) {
+      msgEl.style.color = '#ef4444';
+      msgEl.textContent = '⚠️ Please enter a valid Gemini API key.';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Connecting...';
+    msgEl.style.color = '#3b82f6';
+    msgEl.textContent = 'Testing connection with Google Gemini AI...';
+
+    try {
+      const resp = await fetch('/api/config/gemini-key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ api_key: key })
+      });
+      const data = await resp.json();
+
+      if (resp.ok && data.success) {
+        msgEl.style.color = '#16a34a';
+        msgEl.textContent = '✅ Connected successfully!';
+        checkGeminiStatus();
+        setTimeout(() => {
+          closeKeyModal();
+          btn.disabled = false;
+          btn.textContent = 'Save & Connect';
+        }, 1200);
+      } else {
+        msgEl.style.color = '#ef4444';
+        msgEl.textContent = '❌ ' + (data.error || 'Connection failed.');
+        btn.disabled = false;
+        btn.textContent = 'Save & Connect';
+      }
+    } catch(e) {
+      msgEl.style.color = '#ef4444';
+      msgEl.textContent = '❌ Failed to reach server.';
+      btn.disabled = false;
+      btn.textContent = 'Save & Connect';
+    }
+  }
+
+  // ── AI PLANT DOCTOR CHAT ────────────
+  function addChatMessage(text, sender) {
+    const container = document.getElementById('chatMessages');
+    const msg = document.createElement('div');
+    msg.className = `chat-msg ${sender}`;
+    msg.innerHTML = text.replace(/\n/g, '<br/>');
+    container.appendChild(msg);
+    container.scrollTop = container.scrollHeight;
+  }
+
+  function askPreset(prompt) {
+    document.getElementById('chatInput').value = prompt;
+    sendChatMessage();
+  }
+
+  async function sendChatMessage() {
+    const input = document.getElementById('chatInput');
+    const text = input.value.trim();
+    if (!text) return;
+
+    addChatMessage(text, 'user');
+    input.value = '';
+
+    // Show temporary thinking indicator
+    const thinkingId = 'thinking_' + Date.now();
+    const container = document.getElementById('chatMessages');
+    const thinkingMsg = document.createElement('div');
+    thinkingMsg.id = thinkingId;
+    thinkingMsg.className = 'chat-msg ai';
+    thinkingMsg.innerHTML = '🌿 <em>Plant Doctor सोच रहे हैं...</em>';
+    container.appendChild(thinkingMsg);
+    container.scrollTop = container.scrollHeight;
+
+    try {
+      const resp = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: text,
+          plant: currentScanPlant,
+          disease: currentScanDisease
+        })
+      });
+      const data = await resp.json();
+      const el = document.getElementById(thinkingId);
+      if (el) el.remove();
+
+      if (data && data.reply) {
+        addChatMessage(data.reply, 'ai');
+      } else {
+        addChatMessage('क्षमा करें, उत्तर प्राप्त नहीं हो सका। कृपया पुनः प्रयास करें।', 'ai');
+      }
+    } catch(err) {
+      const el = document.getElementById(thinkingId);
+      if (el) el.remove();
+      addChatMessage('⚠️ नेटवर्क समस्या। कृपया थोड़ी देर बाद प्रयास करें।', 'ai');
+    }
+  }
+
+  // ── SQLITE SCAN HISTORY ─────────────
+  async function loadHistory() {
+    try {
+      const resp = await fetch('/api/history');
+      if (!resp.ok) return;
+      const data = await resp.json();
+      renderHistory(data.history || []);
+    } catch(err) {
+      console.error('Failed to load scan history:', err);
+    }
+  }
+
+  function renderHistory(items) {
+    const countEl = document.getElementById('historyCount');
+    const emptyEl = document.getElementById('historyEmpty');
+    const gridEl = document.getElementById('historyGrid');
+    const clearBtn = document.getElementById('btnClearHistory');
+
+    if (!countEl || !emptyEl || !gridEl) return;
+
+    countEl.textContent = `${items.length} ${items.length === 1 ? 'Scan' : 'Scans'}`;
+
+    if (items.length === 0) {
+      emptyEl.classList.remove('hidden');
+      gridEl.innerHTML = '';
+      if (clearBtn) clearBtn.style.display = 'none';
+      return;
+    }
+
+    emptyEl.classList.add('hidden');
+    if (clearBtn) clearBtn.style.display = 'flex';
+    gridEl.innerHTML = '';
+
+    items.forEach(item => {
+      const card = document.createElement('div');
+      card.className = 'history-card';
+
+      const color = SEV_COLOR[item.severity] || '#6b7280';
+      const pct = Math.round(item.confidence * 100);
+      const imgTag = item.image_url
+        ? `<img src="${item.image_url}" class="history-thumb" alt="${item.plant}" onerror="this.parentElement.innerHTML='<div style=\\'font-size:36px\\'>🌿</div>'"/>`
+        : `<div style="font-size:36px">🌿</div>`;
+
+      card.innerHTML = `
+        <div class="history-thumb-wrap">
+          ${imgTag}
+          <span class="history-badge" style="background:${color}">${item.severity}</span>
+        </div>
+        <div class="history-card-body">
+          <div class="history-plant">${item.plant}</div>
+          <div class="history-disease">${item.disease}</div>
+          <div class="history-meta">
+            <span class="history-conf">🎯 ${pct}%</span>
+            <span>📅 ${item.timestamp}</span>
+          </div>
+        </div>
+      `;
+      gridEl.appendChild(card);
+    });
+  }
+
+  async function clearHistory() {
+    if (!confirm('Are you sure you want to clear all diagnostic history from the SQLite database?')) return;
+    try {
+      const resp = await fetch('/api/history/clear', { method: 'POST' });
+      if (resp.ok) {
+        loadHistory();
+      }
+    } catch(err) {
+      alert('Failed to clear history');
+    }
+  }
+
+  // Load history & check Gemini status on initial page load
+  document.addEventListener('DOMContentLoaded', () => {
+    loadHistory();
+    checkGeminiStatus();
+  });
+</script>
+
+<!-- GEMINI API KEY MODAL -->
+<div class="modal-overlay hidden" id="keyModalOverlay">
+  <div class="modal-box">
+    <h3>🔑 Google Gemini AI Settings</h3>
+    <p>Gemini API key जोड़कर आप लाइव AI Doctor, ऑर्गेनिक और केमिकल इलाज, और हाई-एक्यूरेसी डायग्नोसिस अनलॉक कर सकते हैं।</p>
+    
+    <label style="font-size:12px; font-weight:800; color:var(--text-mid); display:block; margin-bottom:6px;">ENTER GEMINI API KEY:</label>
+    <input type="password" id="geminiApiKeyInput" class="modal-input" placeholder="AIzaSy..."/>
+    
+    <div style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">
+      Free API Key प्राप्त करने के लिए: <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" style="color:var(--green-mid); font-weight:700;">Google AI Studio ↗</a>
+    </div>
+
+    <div id="modalStatusMsg" style="font-size:13px; font-weight:700; margin-bottom:10px;"></div>
+
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeKeyModal()">Cancel</button>
+      <button class="btn-primary" id="btnSaveKey" onclick="saveApiKey()">Save & Connect</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
