@@ -22,10 +22,8 @@ instance/
 plant_disease.db
 static/uploads/
 
-# ── ML Model files (large binaries) ─
-# Commit only class_names.json, not the heavy weights
+# ── ML Model files (allow plant_model.keras) ─
 model/*.h5
-model/*.keras
 model/*.pt
 model/*.pth
 
